@@ -11,6 +11,8 @@ const EventEmitter = require("node:events");
 const os = require('node:os');
 const http = require("http");
 const zipIt = require('node:zlib');
+const URL = require ('node:url');
+const port = 3000;
 
 /** Part 1 Core Modules */
 /**
@@ -42,25 +44,25 @@ let q1_chunkCount = 0;
 • Output Example: File copied using streams
  */
 
-const q2_readStream = fs.createReadStream('./source.txt', options);
-const q2_writeStream = fs.createWriteStream('./dest.txt');
-let q2_chunkCount = 0;
-let sizeOfSrc = fs.statSync('./source.txt').size;
-q2_readStream.on('data', (chunk) => {
-    console.log(`Q2: copying from source to destination using read/write streams manually Progress: ${Math.floor(q2_chunkCount / sizeOfSrc * 100)}%`);
-    q2_writeStream.write(chunk);
-    q2_chunkCount += options.highwatermark;
-});
+// const q2_readStream = fs.createReadStream('./source.txt', options);
+// const q2_writeStream = fs.createWriteStream('./dest.txt');
+// let q2_chunkCount = 0;
+// let sizeOfSrc = fs.statSync('./source.txt').size;
+// q2_readStream.on('data', (chunk) => {
+//     console.log(`Q2: copying from source to destination using read/write streams manually Progress: ${Math.floor(q2_chunkCount / sizeOfSrc * 100)}%`);
+//     q2_writeStream.write(chunk);
+//     q2_chunkCount += options.highwatermark;
+// });
 
 /**
  * Question 3
 3. Create a pipeline that reads a file, compresses it, and writes it to another file. (0.5 Grade)
 • Input Example: "./data.txt", "./data.txt.gz"
  */
-const gzip = zipIt.createGzip();
-const q3_readStream = fs.createReadStream('./source.txt', options);
-const q3_writeStream = fs.createWriteStream('./data.txt.gz');
-q3_readStream.pipe(gzip).pipe(q3_writeStream);
+// const gzip = zipIt.createGzip();
+// const q3_readStream = fs.createReadStream('./source.txt', options);
+// const q3_writeStream = fs.createWriteStream('./data.txt.gz');
+// q3_readStream.pipe(gzip).pipe(q3_writeStream);
 
 
 /** Part 2 Simple CRUD Operations Using HTTP */
@@ -69,8 +71,52 @@ q3_readStream.pipe(gzip).pipe(q3_writeStream);
 1. Create an API that adds a new user to your users stored in a JSON file. (ensure that the email of the new user doesn’t exist before) (1 Grade)
 o URL: POST /user
  */
+function readUsers(){
+    const data = fs.readFileSync('./users.json', 'utf-8');
+    return JSON.parse(data);
+}
 
+function writeUsers(users){
+    fs.writeFileSync('./users.json', JSON.stringify(users)); 
+}
 
+const server_q4 = http.createServer( (request, response) => {
+    const method = request.method;
+    const urlParsed = URL.parse(request.url).pathname;
+    if (method === "POST" && urlParsed === "/user") {
+        let newUser = "";
+        users = readUsers();
+        request.on("data", (chunk)=>{
+            console.log(chunk);
+            newUser+=chunk;
+        });
+        
+        request.on("end", ()=>{
+        const isEmailExists = users.some( user => user.email === JSON.parse(newUser).email);
+        if (isEmailExists){
+            response.statusCode = 400;
+            response.statusMessage = "Email already exists";
+            response.end();
+        }
+        else{
+            users.push(JSON.parse(newUser));
+            writeUsers(users);
+        }
+        const info = JSON.parse(newUser);
+        response.statusCode = 200;
+        response.statusMessage = "New user added successfully !";
+        response.setHeader("content-type", "application/json");
+        response.write(JSON.stringify(info));
+        response.end()
+        });
+
+        
+    }
+} );
+
+server_q4.listen(port, () => {
+    console.log(`Server is listening on port ${port}`);
+});
 /**
  * Question 5
 2. Create an API that updates an existing user's name, age, or email by their ID. The user ID should be retrieved from the URL (1 Grade)
@@ -103,6 +149,9 @@ o URL: GET /user
 5. Create an API that gets User by ID. (1 Grade)
 o URL: GET /user/:id
  */
+
+
+
 
 
 /** Part3: Node Internals */
