@@ -83,34 +83,77 @@ function writeUsers(users){
 const server_q4 = http.createServer( (request, response) => {
     const method = request.method;
     const urlParsed = URL.parse(request.url).pathname;
-    if (method === "POST" && urlParsed === "/user") {
-        let newUser = "";
-        users = readUsers();
+    console.log(urlParsed)
+    if (method === "POST" && urlParsed == "/user") {
+        let data = "";
+        const users = readUsers();
+        console.log(users);
         request.on("data", (chunk)=>{
             console.log(chunk);
-            newUser+=chunk;
+            data+=chunk;
         });
-        
+
         request.on("end", ()=>{
-        const isEmailExists = users.some( user => user.email === JSON.parse(newUser).email);
-        if (isEmailExists){
+        // const isEmailExists = users.some( (user) => { 
+        //     console.log(user.email);
+        //     return user.email === JSON.parse(newUser).email});
+        const newUser = JSON.parse(data);
+        console.log(newUser);
+        if (users[newUser.email]){
             response.statusCode = 400;
+            
+            console.log(newUser.email);
             response.statusMessage = "Email already exists";
+            response.write(
+                JSON.stringify(
+                    {
+                        message: "Email already exists."
+                    }
+                )
+            );  
+            response.end();
+        }
+        else if (undefined === newUser.name || undefined === newUser.id || undefined === newUser.email ){
+            response.statusCode = 400;
+            response.statusMessage = "Invalid user data";
+            response.write(
+                JSON.stringify(
+                    {
+                        message: "Invalid user data. name, age, and email are required."
+                    }
+                )
+            );  
             response.end();
         }
         else{
-            users.push(JSON.parse(newUser));
+            users[newUser.email] = newUser;
             writeUsers(users);
+            response.statusCode = 200;
+            response.statusMessage = "New user added successfully !";
+            response.setHeader("content-type", "application/json");
+            response.write(JSON.stringify(
+                {
+                    message: "user added successfully!"
+                }
+            ));
+            response.end();
         }
-        const info = JSON.parse(newUser);
-        response.statusCode = 200;
-        response.statusMessage = "New user added successfully !";
-        response.setHeader("content-type", "application/json");
-        response.write(JSON.stringify(info));
-        response.end()
+
         });
 
         
+    }
+    else{
+        response.statusCode = 404;
+        response.statusMessage = "Invalid Url"
+        response.write(
+            JSON.stringify(
+                {
+                    message: "invalid url"
+                }
+            )
+        )
+        response.end()
     }
 } );
 
